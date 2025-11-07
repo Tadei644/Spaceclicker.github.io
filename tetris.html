@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costruttore di Stazioni Clicker</title>
+    
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --main-color: #161b22;
+            --border-color: #30363d;
+            --text-color: #c9d1d9;
+            --text-color-light: #8b949e;
+            --accent-color: #58a6ff;
+            --green-color: #238636;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Layout Principale */
+        #game-wrapper {
+            display: grid;
+            grid-template-columns: 300px 1fr; /* Sidebar | Area Principale */
+            grid-template-rows: 100vh;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* --- Sidebar (Click e Stats) --- */
+        #sidebar {
+            background-color: var(--main-color);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #stats-container {
+            width: 100%;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        #stats-container h2 {
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+        }
+        #stats-container p {
+            font-size: 1.2em;
+            margin: 5px 0;
+        }
+        #resource-count {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #fff;
+        }
+        #rps-count {
+            font-size: 1em;
+            color: var(--text-color-light);
+        }
+
+        #clicker-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1; /* Occupa lo spazio rimanente */
+            position: relative; /* Per i numeri fluttuanti */
+        }
+
+        #click-button {
+            font-size: 100px; /* Grande emoji */
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        #click-button:active {
+            transform: scale(0.9);
+        }
+
+        /* Feedback visivo per i click */
+        .click-feedback {
+            position: absolute;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--accent-color);
+            user-select: none;
+            pointer-events: none;
+            opacity: 1;
+            transform: translateY(0);
+            animation: float-up 1s ease-out forwards;
+        }
+        @keyframes float-up {
+            to {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+        }
+
+        /* --- Area Principale (Negozio e Costruzione) --- */
+        #main-content {
+            display: grid;
+            grid-template-rows: auto 1fr; /* Tabs | Aree variabili */
+            overflow: hidden;
+        }
+
+        #tabs-container {
+            display: flex;
+            background-color: var(--main-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .tab {
+            padding: 15px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--text-color-light);
+            font-size: 1em;
+        }
+        .tab:hover {
+            color: #fff;
+        }
+        .tab.active {
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .tab-content {
+            display: none; /* Nascosto di default */
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* --- Negozio --- */
+        .store-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--main-color);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .store-item-info {
+            font-size: 1.1em;
+        }
+        .store-item-info span {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+        .store-item-info small {
+            display: block;
+            color: var(--text-color-light);
+        }
+        .store-item button {
+            font-size: 1em;
+            font-weight: bold;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--green-color);
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .store-item button:hover {
+            background-color: #2ea043;
+        }
+        .store-item button:disabled {
+            background-color: var(--border-color);
+            color: var(--text-color-light);
+            cursor: not-allowed;
+        }
+
+        /* --- Area Costruzione --- */
+        #builder-area {
+            display: grid;
+            grid-template-columns: 1fr 200px; /* Area | Hangar */
+            height: 100%;
+            gap: 15px;
+        }
+
+        #build-zone {
+            position: relative; /* FONDAMENTALE per posizionare le parti */
+            background-color: var(--main-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            background-image: linear-gradient(var(--border-color) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+            background-size: 20px 20px; /* Griglia */
+        }
+        #build-zone.drag-over {
+            border-style: dashed;
+            border-color: var(--accent-color);
+        }
+
+        #hangar {
+            background-color: var(--main-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        #hangar h3 {
+            margin: 0 0 10px 0;
+            text-align: center;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+        .hangar-item {
+            font-size: 2.5em;
+            text-align: center;
+            padding: 10px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            cursor: grab;
+            user-select: none;
+        }
+        .hangar-item:active {
+            cursor: grabbing;
+        }
+        .hangar-item.dragging {
+            opacity: 0.5;
+        }
+
+        /* Parti piazzate nell'area */
+        .placed-part {
+            position: absolute; /* Questo le fa piazzare */
+            font-size: 3em; /* Emoji più grandi */
+            user-select: none;
+            /* Non più trascinabili una volta piazzate (per semplicità) */
+            cursor: default; 
+        }
+
+
+        /* --- Schermata di Vittoria --- */
+        #win-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0d1117; /* Cielo notturno */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            animation: fadeIn 1s forwards;
+        }
+
+        #rocket {
+            font-size: 80px;
+            transform: translateY(100vh);
+            animation: launch 5s ease-in 1s forwards; /* Parte dopo 1s */
+        }
+
+        #win-screen h2 {
+            font-size: 4em;
+            color: #ffffff;
+            opacity: 0;
+            animation: fadeIn 2s 2s forwards; /* Appare dopo 2s */
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes launch {
+            0% { transform: translateY(100vh); }
+            20% { transform: translateY(40vh); }
+            100% { transform: translateY(-100vh); }
+        }
+
+        /* Classe helper per nascondere */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        
+        <div id="sidebar">
+            <div id="stats-container">
+                <h2>RISORSE</h2>
+                <p><span id="resource-count">0</span></p>
+                <p><span id="rps-count">0</span> Risorse/sec</p>
+            </div>
+            
+            <div id="clicker-container" title="Clicca per ottenere risorse!">
+                <button id="click-button">🪐</button>
+            </div>
+        </div>
+        
+        <div id="main-content">
+            <div id="tabs-container">
+                <button class="tab active" data-tab="tab-upgrades">Negozio (Upgrades)</button>
+                <button class="tab" data-tab="tab-parts">Negozio (Parti)</button>
+                <button class="tab" data-tab="tab-builder">Costruzione Stazione</button>
+            </div>
+            
+            <div id="tab-upgrades" class="tab-content active">
+                <h2>Upgrades Risorse</h2>
+                <div id="upgrade-store-container">
+                    </div>
+            </div>
+
+            <div id="tab-parts" class="tab-content">
+                <h2>Parti Stazione</h2>
+                <div id="parts-store-container">
+                    </div>
+            </div>
+            
+            <div id="tab-builder" class="tab-content">
+                <div id="builder-area">
+                    <div id="build-zone">
+                        </div>
+                    <div id="hangar">
+                        <h3>Hangar</h3>
+                        <div id="hangar-items">
+                            </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <div id="win-screen" class="hidden">
+        <div id="rocket">🚀</div>
+        <h2>STAZIONE COMPLETATA!</h2>
+    </div>
+
+
+    <script>
+        // --- MODALITÀ TEST ---
+        // Cambia in 'true' per iniziare con 1,000,000 di risorse
+        const CHEAT_MODE = false;
+
+        // --- 1. RIFERIMENTI DOM ---
+        const resourceCountEl = document.getElementById('resource-count');
+        const rpsCountEl = document.getElementById('rps-count');
+        const clickButton = document.getElementById('click-button');
+        const clickerContainer = document.getElementById('clicker-container');
+        const upgradeStoreContainer = document.getElementById('upgrade-store-container');
+        const partsStoreContainer = document.getElementById('parts-store-container');
+        const hangarItemsContainer = document.getElementById('hangar-items');
+        const buildZone = document.getElementById('build-zone');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const gameWrapper = document.getElementById('game-wrapper');
+        const winScreen = document.getElementById('win-screen');
+
+        // --- 2. STATO DEL GIOCO ---
+        let gameState = {
+            risorse: CHEAT_MODE ? 1000000 : 0,
+            risorsePerClick: 1,
+            risorsePerSecondo: 0,
+            partsInHangar: {}, // Traccia le parti comprate
+            partsPlaced: 0
+        };
+
+        // Formattatore per numeri (es: 1.000.000)
+        const formatter = new Intl.NumberFormat('it-IT');
+
+        // --- 3. DEFINIZIONI NEGOZIO ---
+        
+        // Negozio Upgrades
+        const upgrades = {
+            'click1': {
+                name: 'Tuta Migliore',
+                description: 'Click manuali +1',
+                cost: 50,
+                owned: 0,
+                apply: (state) => { state.risorsePerClick += 1; }
+            },
+            'click2': {
+                name: 'Attrezzi Migliori',
+                description: 'Click manuali +5',
+                cost: 500,
+                owned: 0,
+                apply: (state) => { state.risorsePerClick += 5; }
+            },
+            'auto1': {
+                name: 'Drone di Raccolta',
+                description: '+1 Risorse/sec',
+                cost: 100,
+                owned: 0,
+                apply: (state) => { state.risorsePerSecondo += 1; }
+            },
+            'auto2': {
+                name: 'Squadra di Droni',
+                description: '+10 Risorse/sec',
+                cost: 1000,
+                owned: 0,
+                apply: (state) => { state.risorsePerSecondo += 10; }
+            },
+            'auto3': {
+                name: 'Fabbrica Automatica',
+                description: '+100 Risorse/sec',
+                cost: 11000,
+                owned: 0,
+                apply: (state) => { state.risorsePerSecondo += 100; }
+            }
+        };
+
+        // Negozio Parti della Stazione
+        const stationParts = {
+            'pannello': { name: 'Pannello Solare', emoji: '☀️', cost: 1000, unique: false },
+            'modulo': { name: 'Modulo Abitativo', emoji: '🏠', cost: 5000, unique: false },
+            'antenna': { name: 'Antenna', emoji: '📡', cost: 25000, unique: false },
+            'laboratorio': { name: 'Laboratorio', emoji: '🔬', cost: 100000, unique: false },
+            'razzo': { name: 'Razzo di Lancio', emoji: '🚀', cost: 1000000, unique: true } // OBIETTIVO FINALE
+        };
+
+        // --- 4. FUNZIONI PRINCIPALI DEL GIOCO ---
+
+        // Logica del Click Manuale
+        function handleManualClick() {
+            gameState.risorse += gameState.risorsePerClick;
+            
+            // Mostra feedback visivo
+            const feedback = document.createElement('div');
+            feedback.className = 'click-feedback';
+            feedback.textContent = `+${formatter.format(gameState.risorsePerClick)}`;
+            // Posizione casuale attorno al click
+            feedback.style.left = `${Math.random() * 80 + 10}%`; 
+            clickerContainer.appendChild(feedback);
+            // Rimuovi dopo l'animazione
+            setTimeout(() => { feedback.remove(); }, 1000);
+
+            updateUI();
+        }
+
+        // Logica dei Click Automatici (Game Loop)
+        function gameLoop() {
+            gameState.risorse += gameState.risorsePerSecondo;
+            updateUI();
+        }
+
+        // Aggiorna tutta l'interfaccia
+        function updateUI() {
+            // Aggiorna statistiche
+            resourceCountEl.textContent = formatter.format(Math.floor(gameState.risorse));
+            rpsCountEl.textContent = formatter.format(gameState.risorsePerSecondo);
+
+            // Aggiorna stato bottoni Negozio Upgrades
+            for (const id in upgrades) {
+                const item = upgrades[id];
+                const btn = document.getElementById(`buy-upgrade-${id}`);
+                if (btn) {
+                    btn.disabled = gameState.risorse < item.cost;
+                    btn.querySelector('.cost').textContent = `${formatter.format(item.cost)} R`;
+                    btn.querySelector('.owned').textContent = `(Posseduti: ${item.owned})`;
+                }
+            }
+
+            // Aggiorna stato bottoni Negozio Parti
+            for (const id in stationParts) {
+                const item = stationParts[id];
+                const btn = document.getElementById(`buy-part-${id}`);
+                if (btn) {
+                    btn.disabled = gameState.risorse < item.cost;
+                    // Disabilita se è unico e già comprato
+                    if (item.unique && gameState.partsInHangar[id]) {
+                        btn.disabled = true;
+                        btn.textContent = "Acquistato";
+                    }
+                }
+            }
+        }
+
+        // --- 5. LOGICA NEGOZI ---
+
+        // Inizializza i negozi
+        function initializeStores() {
+            // Popola negozio Upgrades
+            upgradeStoreContainer.innerHTML = ''; // Pulisci
+            for (const id in upgrades) {
+                const item = upgrades[id];
+                const el = document.createElement('div');
+                el.className = 'store-item';
+                el.innerHTML = `
+                    <div class="store-item-info">
+                        ${item.name}
+                        <small>${item.description}</small>
+                        <small class="owned">(Posseduti: 0)</small>
+                    </div>
+                    <button id="buy-upgrade-${id}">
+                        <span class="cost">${formatter.format(item.cost)} R</span>
+                    </button>
+                `;
+                el.querySelector('button').addEventListener('click', () => buyUpgrade(id));
+                upgradeStoreContainer.appendChild(el);
+            }
+
+            // Popola negozio Parti
+            partsStoreContainer.innerHTML = ''; // Pulisci
+            for (const id in stationParts) {
+                const item = stationParts[id];
+                const el = document.createElement('div');
+                el.className = 'store-item';
+                el.innerHTML = `
+                    <div class="store-item-info">
+                        <span>${item.emoji}</span> ${item.name}
+                    </div>
+                    <button id="buy-part-${id}">
+                        ${formatter.format(item.cost)} R
+                    </button>
+                `;
+                el.querySelector('button').addEventListener('click', () => buyPart(id));
+                partsStoreContainer.appendChild(el);
+            }
+        }
+
+        // Funzione per comprare un Upgrade
+        function buyUpgrade(id) {
+            const item = upgrades[id];
+            if (gameState.risorse >= item.cost) {
+                gameState.risorse -= item.cost;
+                item.apply(gameState);
+                item.owned++;
+                item.cost = Math.floor(item.cost * 1.5); // Aumenta il costo
+                updateUI();
+            }
+        }
+
+        // Funzione per comprare una Parte
+        function buyPart(id) {
+            const item = stationParts[id];
+            if (gameState.risorse >= item.cost) {
+                gameState.risorse -= item.cost;
+                
+                // Controlla se è il razzo (VITTORIA)
+                if (id === 'razzo') {
+                    triggerWin();
+                    return; // Fine del gioco
+                }
+
+                // Aggiungi all'inventario/stato
+                gameState.partsInHangar[id] = (gameState.partsInHangar[id] || 0) + 1;
+                
+                // Aggiungi all'Hangar visivo
+                addPartToHangar(id, item.emoji);
+                updateUI();
+            }
+        }
+
+        // Aggiunge la parte all'Hangar e la rende trascinabile
+        function addPartToHangar(id, emoji) {
+            const partEl = document.createElement('div');
+            partEl.className = 'hangar-item';
+            partEl.textContent = emoji;
+            partEl.dataset.partId = id; // Salva l'ID per il drop
+            partEl.draggable = true;
+
+            // Event listener per l'inizio del trascinamento
+            partEl.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', id); // Diciamo cosa stiamo trascinando
+                e.dataTransfer.setData('emoji', emoji);
+                setTimeout(() => partEl.classList.add('dragging'), 0); // Stile visivo
+            });
+
+            // Event listener per la fine del trascinamento
+            partEl.addEventListener('dragend', () => {
+                partEl.classList.remove('dragging');
+            });
+
+            hangarItemsContainer.appendChild(partEl);
+        }
+
+        // --- 6. LOGICA DRAG-AND-DROP (Costruzione) ---
+
+        // Permetti il drop sull'area
+        buildZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necessario per permettere il 'drop'
+            buildZone.classList.add('drag-over');
+        });
+
+        // Rimuovi lo stile quando si esce
+        buildZone.addEventListener('dragleave', () => {
+            buildZone.classList.remove('drag-over');
+        });
+
+        // Gestisci il drop!
+        buildZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            buildZone.classList.remove('drag-over');
+
+            const id = e.dataTransfer.getData('text/plain');
+            const emoji = e.dataTransfer.getData('emoji');
+            
+            // Trova l'elemento originale nell'hangar e rimuovilo
+            const originalPart = Array.from(hangarItemsContainer.children).find(
+                p => p.dataset.partId === id && !p.classList.contains('dragging')
+            );
+            if (originalPart) {
+                originalPart.remove();
+            }
+
+            // Crea la nuova parte "piazzata"
+            const placedPart = document.createElement('div');
+            placedPart.className = 'placed-part';
+            placedPart.textContent = emoji;
+
+            // Calcola la posizione di drop DENTRO l'area
+            const rect = buildZone.getBoundingClientRect();
+            const x = e.clientX - rect.left - 20; // -20 per centrare l'emoji
+            const y = e.clientY - rect.top - 30; // -30 per centrare l'emoji
+
+            placedPart.style.left = `${x}px`;
+            placedPart.style.top = `${y}px`;
+
+            buildZone.appendChild(placedPart);
+            gameState.partsPlaced++;
+        });
+
+
+        // --- 7. GESTIONE TABS ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Rimuovi 'active' da tutti
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Aggiungi 'active' a quello cliccato
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // --- 8. LOGICA DI VITTORIA ---
+        function triggerWin() {
+            gameWrapper.classList.add('hidden'); // Nasconde il gioco
+            winScreen.classList.remove('hidden'); // Mostra la vittoria
+            // Il CSS gestisce le animazioni
+        }
+
+        // --- 9. AVVIO GIOCO ---
+        clickButton.addEventListener('click', handleManualClick);
+        setInterval(gameLoop, 1000); // Avvia il loop di gioco
+        initializeStores(); // Popola i negozi
+        updateUI(); // Imposta i valori iniziali
+
+    </script>
+</body>
+</html>
